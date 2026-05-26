@@ -1,0 +1,44 @@
+name: Update Leaderboard
+
+on:
+  schedule:
+    - cron: '0 4 * * *'    # daily at 04:00 UTC
+  workflow_dispatch:      # allows manual runs
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install dependencies
+        run: |
+          pip install requests beautifulsoup4
+
+      - name: Regenerate leaderboard
+        run: |
+          python summer_pool.py \
+            --entries entries.csv \
+            --csv summer_movies.csv
+          # move them into docs for Pages
+           mv leaderboard.html docs/index.html
+           mv leaderboard.csv docs/leaderboard.csv
+      - name: Commit & push changes
+        run: |
+          git config user.name  "GitHub Actions"
+          git config user.email "actions@github.com"
+          # Stage only the docs/ folder (new index.html and leaderboard.csv)
+          git add -A
+          # If nothing new was staged, just exit successfully
+          git diff --cached --quiet && echo "No changes to commit" && exit 0
+          git commit -m "🔄 Auto-update leaderboard"
+          git push
+
