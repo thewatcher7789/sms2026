@@ -13,7 +13,7 @@ from summer_box_office_fetcher import (
 # === MANUAL monthly opening-weekend winners ===
 # (You can update as each month concludes.)
 MONTHLY_WINNERS = {
-    "May":    "Star Wars: The Mandalorian and Grogu",   # Update when May opening-weekend winner is confirmed
+    "May": "The Mandalorian & Grogu",   # Update when May opening-weekend winner is confirmed
     "June":   None,   # Update when June opening-weekend winner is confirmed
     "July":   None,   # Update when July opening-weekend winner is confirmed
     "August": None,   # Update when August opening-weekend winner is confirmed
@@ -302,7 +302,6 @@ def write_html(results, top10, monthly_winners, top_dists, daily_data=None, path
     }}
 
     function render() {{
-      const isMobile = window.innerWidth < 600;
       const ctx = document.getElementById('trajectoryChart').getContext('2d');
       if (chart) chart.destroy();
       chart = new Chart(ctx, {{
@@ -310,43 +309,37 @@ def write_html(results, top10, monthly_winners, top_dists, daily_data=None, path
         data: {{ datasets: buildDatasets() }},
         options: {{
           responsive: true,
-          maintainAspectRatio: false,
-          interaction: {{ mode: 'nearest', intersect: false, axis: 'x' }},
+          interaction: {{ mode: 'index', intersect: false }},
           plugins: {{
             legend: {{ display: false }},
             tooltip: {{
               backgroundColor: '#1a1a2e',
               titleColor: '#f4c542',
               bodyColor: '#e0e0e0',
-              padding: isMobile ? 8 : 12,
-              bodyFont: {{ size: isMobile ? 11 : 13 }},
+              padding: 12,
               callbacks: {{
-                title: items => `Day ${{items[0].parsed.x}}`,
-                label: ctx => ` ${{ctx.dataset.label.length > 20 && isMobile
-                  ? ctx.dataset.label.substring(0, 18) + '…'
-                  : ctx.dataset.label}}: ${{fmt(ctx.parsed.y)}}`
+                label: ctx => ` ${{ctx.dataset.label}}: ${{fmt(ctx.parsed.y)}}`
               }}
             }}
           }},
           scales: {{
             x: {{
               type: 'linear',
-              title: {{ display: !isMobile, text: 'Day Since Opening', color: '#aaa', font: {{ size: 13 }} }},
-              ticks: {{ color: '#aaa', font: {{ size: isMobile ? 10 : 12 }}, maxTicksLimit: isMobile ? 7 : 15 }},
+              title: {{ display: true, text: 'Day Since Opening', color: '#aaa', font: {{ size: 13 }} }},
+              ticks: {{ color: '#aaa' }},
               grid:  {{ color: 'rgba(255,255,255,0.06)' }},
             }},
             y: {{
-              title: {{ display: !isMobile,
+              title: {{ display: true,
                 text: mode === 'cumulative' ? 'Cumulative Domestic Gross' : 'Daily Domestic Gross',
                 color: '#aaa', font: {{ size: 13 }} }},
-              ticks: {{ color: '#aaa', font: {{ size: isMobile ? 10 : 12 }}, callback: v => fmt(v), maxTicksLimit: isMobile ? 5 : 8 }},
+              ticks: {{ color: '#aaa', callback: v => fmt(v) }},
               grid:  {{ color: 'rgba(255,255,255,0.06)' }},
             }}
           }}
         }}
       }});
     }}
-    window.addEventListener('resize', render);
 
     function setMode(m) {{
       mode = m;
@@ -536,7 +529,7 @@ def write_html(results, top10, monthly_winners, top_dists, daily_data=None, path
     }}
     .chart-section .section-title {{ margin-top: 0; }}
     .chart-desc {{ color: var(--muted); font-size: 14px; margin-bottom: 18px; }}
-    .chart-wrap {{ position: relative; height: clamp(280px, 50vw, 420px); margin-top: 20px; }}
+    .chart-wrap {{ position: relative; height: 420px; margin-top: 20px; }}
     .chart-wrap canvas {{ width: 100% !important; height: 100% !important; }}
 
     /* ── Toggle buttons ─────────────────────────────── */
@@ -565,38 +558,23 @@ def write_html(results, top10, monthly_winners, top_dists, daily_data=None, path
       display: flex;
       flex-wrap: wrap;
       gap: 7px;
-      margin-bottom: 12px;
+      margin-bottom: 4px;
     }}
     .chip {{
       background: transparent;
       border: 1.5px solid var(--chip-color, #888);
       color: var(--chip-color, #888);
       border-radius: 999px;
-      padding: 6px 14px;
+      padding: 4px 12px;
       font-family: var(--font-body);
       font-size: 12px;
       font-weight: 500;
       cursor: pointer;
       transition: all 0.15s;
       opacity: 0.45;
-      white-space: nowrap;
-      min-height: 36px;
-      display: flex;
-      align-items: center;
     }}
     .chip.active {{ opacity: 1; background: color-mix(in srgb, var(--chip-color) 18%, transparent); }}
     .chip:hover {{ opacity: 0.85; }}
-
-    /* ── Mobile overrides ───────────────────────────── */
-    @media (max-width: 600px) {{
-      .chart-section {{ padding: 16px 12px 16px; }}
-      .toggle-bar {{ gap: 6px; }}
-      .toggle-btn {{ padding: 8px 14px; font-size: 13px; flex: 1; text-align: center; }}
-      td {{ padding: 9px 10px; font-size: 14px; }}
-      .hero h1 {{ letter-spacing: 1px; }}
-      .section-title {{ font-size: 1.6rem; margin: 32px 0 12px; }}
-      .chip {{ font-size: 11px; padding: 5px 10px; min-height: 32px; }}
-    }}
   </style>
 </head>
 <body>
