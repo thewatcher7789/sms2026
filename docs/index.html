@@ -127,7 +127,7 @@
     }
     .chart-section .section-title { margin-top: 0; }
     .chart-desc { color: var(--muted); font-size: 14px; margin-bottom: 18px; }
-    .chart-wrap { position: relative; height: 420px; margin-top: 20px; }
+    .chart-wrap { position: relative; height: clamp(280px, 50vw, 420px); margin-top: 20px; }
     .chart-wrap canvas { width: 100% !important; height: 100% !important; }
 
     /* ── Toggle buttons ─────────────────────────────── */
@@ -156,23 +156,38 @@
       display: flex;
       flex-wrap: wrap;
       gap: 7px;
-      margin-bottom: 4px;
+      margin-bottom: 12px;
     }
     .chip {
       background: transparent;
       border: 1.5px solid var(--chip-color, #888);
       color: var(--chip-color, #888);
       border-radius: 999px;
-      padding: 4px 12px;
+      padding: 6px 14px;
       font-family: var(--font-body);
       font-size: 12px;
       font-weight: 500;
       cursor: pointer;
       transition: all 0.15s;
       opacity: 0.45;
+      white-space: nowrap;
+      min-height: 36px;
+      display: flex;
+      align-items: center;
     }
     .chip.active { opacity: 1; background: color-mix(in srgb, var(--chip-color) 18%, transparent); }
     .chip:hover { opacity: 0.85; }
+
+    /* ── Mobile overrides ───────────────────────────── */
+    @media (max-width: 600px) {
+      .chart-section { padding: 16px 12px 16px; }
+      .toggle-bar { gap: 6px; }
+      .toggle-btn { padding: 8px 14px; font-size: 13px; flex: 1; text-align: center; }
+      td { padding: 9px 10px; font-size: 14px; }
+      .hero h1 { letter-spacing: 1px; }
+      .section-title { font-size: 1.6rem; margin: 32px 0 12px; }
+      .chip { font-size: 11px; padding: 5px 10px; min-height: 32px; }
+    }
   </style>
 </head>
 <body>
@@ -256,6 +271,7 @@
     }
 
     function render() {
+      const isMobile = window.innerWidth < 600;
       const ctx = document.getElementById('trajectoryChart').getContext('2d');
       if (chart) chart.destroy();
       chart = new Chart(ctx, {
@@ -263,37 +279,43 @@
         data: { datasets: buildDatasets() },
         options: {
           responsive: true,
-          interaction: { mode: 'index', intersect: false },
+          maintainAspectRatio: false,
+          interaction: { mode: 'nearest', intersect: false, axis: 'x' },
           plugins: {
             legend: { display: false },
             tooltip: {
               backgroundColor: '#1a1a2e',
               titleColor: '#f4c542',
               bodyColor: '#e0e0e0',
-              padding: 12,
+              padding: isMobile ? 8 : 12,
+              bodyFont: { size: isMobile ? 11 : 13 },
               callbacks: {
-                label: ctx => ` ${ctx.dataset.label}: ${fmt(ctx.parsed.y)}`
+                title: items => `Day ${items[0].parsed.x}`,
+                label: ctx => ` ${ctx.dataset.label.length > 20 && isMobile
+                  ? ctx.dataset.label.substring(0, 18) + '…'
+                  : ctx.dataset.label}: ${fmt(ctx.parsed.y)}`
               }
             }
           },
           scales: {
             x: {
               type: 'linear',
-              title: { display: true, text: 'Day Since Opening', color: '#aaa', font: { size: 13 } },
-              ticks: { color: '#aaa' },
+              title: { display: !isMobile, text: 'Day Since Opening', color: '#aaa', font: { size: 13 } },
+              ticks: { color: '#aaa', font: { size: isMobile ? 10 : 12 }, maxTicksLimit: isMobile ? 7 : 15 },
               grid:  { color: 'rgba(255,255,255,0.06)' },
             },
             y: {
-              title: { display: true,
+              title: { display: !isMobile,
                 text: mode === 'cumulative' ? 'Cumulative Domestic Gross' : 'Daily Domestic Gross',
                 color: '#aaa', font: { size: 13 } },
-              ticks: { color: '#aaa', callback: v => fmt(v) },
+              ticks: { color: '#aaa', font: { size: isMobile ? 10 : 12 }, callback: v => fmt(v), maxTicksLimit: isMobile ? 5 : 8 },
               grid:  { color: 'rgba(255,255,255,0.06)' },
             }
           }
         }
       });
     }
+    window.addEventListener('resize', render);
 
     function setMode(m) {
       mode = m;
@@ -345,7 +367,7 @@
     <h2 class="section-title">📅 Monthly Opening-Weekend Winners</h2>
     <table>
       <thead><tr><th>Month</th><th>Winner</th><th>Bonus</th></tr></thead>
-      <tbody><tr><td>May</td><td>The Mandalorian & Grogu</td><td class='score-cell'>+3</td></tr>
+      <tbody><tr><td>May</td><td>Star Wars: The Mandalorian & Grogu</td><td class='score-cell'>+3</td></tr>
 <tr><td>June</td><td class='tbd'>TBD</td><td class='score-cell'>—</td></tr>
 <tr><td>July</td><td class='tbd'>TBD</td><td class='score-cell'>—</td></tr>
 <tr><td>August</td><td class='tbd'>TBD</td><td class='score-cell'>—</td></tr>
@@ -356,19 +378,19 @@
     <h2 class="section-title">🏆 Pool Leaderboard</h2>
     <table>
       <thead><tr><th class="rank-col">#</th><th>Name</th><th>Score</th></tr></thead>
-      <tbody><tr class='leader-row gold'><td class='rank-col'>1</td><td>Billy Shinevar</td><td class='score-cell'>10</td></tr>
-<tr class='leader-row silver'><td class='rank-col'>2</td><td>Callum Appleby</td><td class='score-cell'>10</td></tr>
-<tr class='leader-row bronze'><td class='rank-col'>3</td><td>Derek Nawrocki</td><td class='score-cell'>10</td></tr>
-<tr class='leader-row'><td class='rank-col'>4</td><td>Ryan Fischer</td><td class='score-cell'>10</td></tr>
-<tr class='leader-row'><td class='rank-col'>5</td><td>Thomas McLean</td><td class='score-cell'>10</td></tr>
-<tr class='leader-row'><td class='rank-col'>6</td><td>Josh Sallmen</td><td class='score-cell'>9</td></tr>
-<tr class='leader-row'><td class='rank-col'>7</td><td>Nicholas Wagner</td><td class='score-cell'>9</td></tr>
-<tr class='leader-row'><td class='rank-col'>8</td><td>Leah McPhillips</td><td class='score-cell'>8</td></tr>
-<tr class='leader-row'><td class='rank-col'>9</td><td>Annabelle Lolinco</td><td class='score-cell'>7</td></tr>
-<tr class='leader-row'><td class='rank-col'>10</td><td>Eric Magda</td><td class='score-cell'>7</td></tr>
-<tr class='leader-row'><td class='rank-col'>11</td><td>Joe Sallmen</td><td class='score-cell'>7</td></tr>
-<tr class='leader-row'><td class='rank-col'>12</td><td>Peter J. Montini</td><td class='score-cell'>7</td></tr>
-<tr class='leader-row'><td class='rank-col'>13</td><td>Julia Flaminio</td><td class='score-cell'>5</td></tr>
+      <tbody><tr class='leader-row gold'><td class='rank-col'>1</td><td>Leah McPhillips</td><td class='score-cell'>8</td></tr>
+<tr class='leader-row silver'><td class='rank-col'>2</td><td>Billy Shinevar</td><td class='score-cell'>7</td></tr>
+<tr class='leader-row bronze'><td class='rank-col'>3</td><td>Callum Appleby</td><td class='score-cell'>7</td></tr>
+<tr class='leader-row'><td class='rank-col'>4</td><td>Derek Nawrocki</td><td class='score-cell'>7</td></tr>
+<tr class='leader-row'><td class='rank-col'>5</td><td>Eric Magda</td><td class='score-cell'>7</td></tr>
+<tr class='leader-row'><td class='rank-col'>6</td><td>Joe Sallmen</td><td class='score-cell'>7</td></tr>
+<tr class='leader-row'><td class='rank-col'>7</td><td>Peter J. Montini</td><td class='score-cell'>7</td></tr>
+<tr class='leader-row'><td class='rank-col'>8</td><td>Ryan Fischer</td><td class='score-cell'>7</td></tr>
+<tr class='leader-row'><td class='rank-col'>9</td><td>Thomas McLean</td><td class='score-cell'>7</td></tr>
+<tr class='leader-row'><td class='rank-col'>10</td><td>Josh Sallmen</td><td class='score-cell'>6</td></tr>
+<tr class='leader-row'><td class='rank-col'>11</td><td>Nicholas Wagner</td><td class='score-cell'>6</td></tr>
+<tr class='leader-row'><td class='rank-col'>12</td><td>Annabelle Lolinco</td><td class='score-cell'>4</td></tr>
+<tr class='leader-row'><td class='rank-col'>13</td><td>Julia Flaminio</td><td class='score-cell'>2</td></tr>
 </tbody>
     </table>
 
