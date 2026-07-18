@@ -14,7 +14,7 @@ from summer_box_office_fetcher import (
 # (You can update as each month concludes.)
 MONTHLY_WINNERS = {
     "May":    "The Mandalorian and Grogu",   # Update when May opening-weekend winner is confirmed
-    "June":   None,   # Update when June opening-weekend winner is confirmed
+    "June":   "Toy Story 5",   # Update when June opening-weekend winner is confirmed
     "July":   None,   # Update when July opening-weekend winner is confirmed
     "August": None,   # Update when August opening-weekend winner is confirmed
 }
