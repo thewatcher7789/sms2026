@@ -265,12 +265,17 @@ def get_top_distributors_for_summer(limit: int = 5, debug: bool = False):
 
     data = _fetch_bom_yearly(debug=debug) or _fallback_data()
 
-    totals   = {}
-    splitter = re.compile(r"\s*/\s*")   # BOM uses " / " for co-distributors
+    totals    = {}
+    breakdown = defaultdict(list)   # dist -> [(title, gross), ...]
+    splitter  = re.compile(r"\s*/\s*")
+
+    matched_norms = set()
 
     for r in data:
-        if normalize_title(r["title"]) not in summer_norm:
+        norm = normalize_title(r["title"])
+        if norm not in summer_norm:
             continue
+        matched_norms.add(norm)
         gross = int(r["gross"])
         if gross <= 0:
             continue
@@ -280,11 +285,25 @@ def get_top_distributors_for_summer(limit: int = 5, debug: bool = False):
                 continue
             dist = normalize_distributor(part)
             totals[dist] = totals.get(dist, 0) + gross
+            breakdown[dist].append((r["title"], gross))
 
     ranked = sorted(totals.items(), key=lambda kv: kv[1], reverse=True)[:limit]
 
     if debug:
-        print("\n[DEBUG] Top distributors (summer CSV titles only):")
+        print("\n[DEBUG] ── Distributor breakdown ──")
+        for dist, _ in ranked:
+            movies = sorted(breakdown[dist], key=lambda x: x[1], reverse=True)
+            total  = sum(g for _, g in movies)
+            print(f"\n  {dist} — ${total:,}")
+            for title, gross in movies:
+                print(f"      ${gross:>15,}  {title}")
+
+        print("\n[DEBUG] ── CSV titles with NO BOM match (possible mismatches) ──")
+        unmatched = [t for t in csv_titles if normalize_title(t) not in matched_norms]
+        for t in unmatched:
+            print(f"  ✗ {t}")
+
+        print(f"\n[DEBUG] Top {limit} distributors:")
         for i, (d, g) in enumerate(ranked, 1):
             print(f"  {i}. {d} — ${g:,}")
 
@@ -305,14 +324,12 @@ _BOM_HREFS: dict = {}   # normalize_title(title) -> "/title/ttXXX/"
 
 
 def _scrape_bom_daily_from_release_url(release_url: str, title: str, debug: bool) -> list:
-    """Scrape the daily gross table from a BOM release page."""
-    # Use the base release URL directly — table is on the main page
-    base_url = release_url.split("?")[0].rstrip("/") + "/"
+    """Given a BOM /release/rlXXX/ URL, scrape the daily gross table."""
     if debug:
-        print(f"[DEBUG]   Fetching release page: {base_url}")
+        print(f"[DEBUG]   Fetching release page: {release_url}")
     time.sleep(random.uniform(0.8, 1.5))
     try:
-        resp = requests.get(base_url, headers=HEADERS, timeout=20)
+        resp = requests.get(release_url, headers=HEADERS, timeout=20)
         resp.raise_for_status()
     except Exception as e:
         if debug:
@@ -321,22 +338,22 @@ def _scrape_bom_daily_from_release_url(release_url: str, title: str, debug: bool
 
     soup = BeautifulSoup(resp.text, "html.parser")
 
-    # BOM daily table has headers: Date, DOW, Rank, Daily, %± YD, %± LW, Theaters, Avg, To Date, Day
+    # BOM daily table headers contain "Date", "Day", "Daily", "Cumulative"
     table = None
     for tbl in soup.find_all("table"):
         hdrs = [th.get_text(strip=True).lower() for th in tbl.find_all("th")]
-        if debug:
-            print(f"[DEBUG]   Table headers: {hdrs}")
-        if any("daily" in h for h in hdrs) and any("date" in h for h in hdrs):
+        if any("daily" in h for h in hdrs) and any("cumulative" in h for h in hdrs):
             table = tbl
             break
 
     if not table:
         if debug:
-            print(f"[DEBUG]   Daily table not found for '{title}'")
+            print(f"[DEBUG]   Daily table not found on release page for '{title}'")
         return []
 
     hdrs = [th.get_text(strip=True).lower() for th in table.find_all("th")]
+    if debug:
+        print(f"[DEBUG]   Release page table headers: {hdrs}")
 
     def col(keys):
         for k in keys:
@@ -347,11 +364,7 @@ def _scrape_bom_daily_from_release_url(release_url: str, title: str, debug: bool
 
     date_col  = col(["date"])
     daily_col = col(["daily"])
-    cum_col   = col(["to date", "cumulative", "total"])
-    day_col   = col(["day"])
-
-    if debug:
-        print(f"[DEBUG]   Col map — date:{date_col} daily:{daily_col} cum:{cum_col} day:{day_col}")
+    cum_col   = col(["cumulative", "total"])
 
     if any(c is None for c in [date_col, daily_col, cum_col]):
         if debug:
@@ -359,7 +372,7 @@ def _scrape_bom_daily_from_release_url(release_url: str, title: str, debug: bool
         return []
 
     rows = []
-    for i, tr in enumerate(table.find_all("tr")[1:], start=1):
+    for day_num, tr in enumerate(table.find_all("tr")[1:], start=1):
         tds = tr.find_all("td")
         if len(tds) <= max(date_col, daily_col, cum_col):
             continue
@@ -367,7 +380,6 @@ def _scrape_bom_daily_from_release_url(release_url: str, title: str, debug: bool
             date_str = tds[date_col].get_text(strip=True)
             daily    = int(re.sub(r"[^\d]", "", tds[daily_col].get_text(strip=True)) or 0)
             cumul    = int(re.sub(r"[^\d]", "", tds[cum_col].get_text(strip=True)) or 0)
-            day_num  = int(re.sub(r"[^\d]", "", tds[day_col].get_text(strip=True)) or i) if day_col else i
             parsed_date = None
             for fmt in ("%b %d, %Y", "%B %d, %Y", "%Y-%m-%d"):
                 try:
@@ -375,9 +387,8 @@ def _scrape_bom_daily_from_release_url(release_url: str, title: str, debug: bool
                     break
                 except Exception:
                     pass
-            if daily > 0:
-                rows.append({"day": day_num, "date": parsed_date or date_str,
-                             "daily": daily, "cumulative": cumul})
+            rows.append({"day": day_num, "date": parsed_date or date_str,
+                         "daily": daily, "cumulative": cumul})
         except Exception:
             continue
 
@@ -388,16 +399,33 @@ def _scrape_bom_daily_from_release_url(release_url: str, title: str, debug: bool
 
 def fetch_daily_grosses_for_title(title: str, debug: bool = False,
                                   bom_href: str = None) -> list:
+    """
+    Fetch daily gross history for one title via BOM.
+    bom_href: the /title/ttXXX/ path captured from the yearly BOM page.
+    """
     href = bom_href or _BOM_HREFS.get(normalize_title(title))
     if not href:
         if debug:
-            print(f"[DEBUG] No BOM href for '{title}' — skipping")
+            print(f"[DEBUG] No BOM href for '{title}' — skipping daily data")
         return []
-    release_url = ("https://www.boxofficemojo.com" + href
-                   if href.startswith("/") else href)
+
+    # Ensure absolute URL
+    if href.startswith("/"):
+        title_url = "https://www.boxofficemojo.com" + href
+    else:
+        title_url = href
+
     if debug:
-        print(f"[DEBUG] Fetching BOM title page for '{title}' → {release_url}")
-    return _scrape_bom_daily_from_release_url(release_url, title, debug)
+        print(f"[DEBUG] Fetching BOM title page for '{title}' → {title_url}")
+
+    time.sleep(random.uniform(0.8, 1.5))
+    try:
+        resp = requests.get(title_url, headers=HEADERS, timeout=20)
+        resp.raise_for_status()
+    except Exception as e:
+        if debug:
+            print(f"[DEBUG]   Title page fetch failed: {e}")
+        return []
 
     soup = BeautifulSoup(resp.text, "html.parser")
 

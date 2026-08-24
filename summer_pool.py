@@ -16,7 +16,7 @@ MONTHLY_WINNERS = {
     "May":    "The Mandalorian and Grogu",   # Update when May opening-weekend winner is confirmed
     "June":   "Toy Story 5",   # Update when June opening-weekend winner is confirmed
     "July":   "Spider-man: Brand New Day",   # Update when July opening-weekend winner is confirmed
-    "August": "The End of Oak Street",   # Update when August opening-weekend winner is confirmed
+    "August": "Insidious: Out of the Further",   # Update when August opening-weekend winner is confirmed
 }
 
 # Points for distributor rank guesses
